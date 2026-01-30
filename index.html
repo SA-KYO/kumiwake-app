@@ -763,32 +763,48 @@
       document.addEventListener("pointercancel", onPointerUp);
     };
 
-    document.getElementById("shuffle").addEventListener("click", shufflePlayers);
-    document.getElementById("reset").addEventListener("click", resetPlayers);
+    seedPlayers(initialPlayers);
+
+    const shuffleButton = document.getElementById("shuffle");
+    const resetButton = document.getElementById("reset");
     const exportButton = document.getElementById("export");
-    exportButton.addEventListener("click", () => {
-      exportBoardAsPng();
-    });
+
+    if (shuffleButton) {
+      shuffleButton.addEventListener("click", shufflePlayers);
+    }
+    if (resetButton) {
+      resetButton.addEventListener("click", resetPlayers);
+    }
+    if (exportButton) {
+      exportButton.addEventListener("click", () => {
+        exportBoardAsPng();
+      });
+    }
 
     const nameInput = document.getElementById("newName");
-    document.getElementById("add").addEventListener("click", () => {
-      const name = nameInput.value.trim();
-      if (!name) {
-        nameInput.focus();
-        return;
-      }
-      const player = createPlayer(name, poolZone.children.length);
-      poolZone.appendChild(player);
-      nameInput.value = "";
-      updateCounts();
-    });
+    const addButton = document.getElementById("add");
+    if (addButton) {
+      addButton.addEventListener("click", () => {
+        const name = nameInput ? nameInput.value.trim() : "";
+        if (!name || !nameInput) {
+          if (nameInput) nameInput.focus();
+          return;
+        }
+        const player = createPlayer(name, poolZone.children.length);
+        poolZone.appendChild(player);
+        nameInput.value = "";
+        updateCounts();
+      });
+    }
 
-    nameInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        document.getElementById("add").click();
-      }
-    });
+    if (nameInput) {
+      nameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (addButton) addButton.click();
+        }
+      });
+    }
 
     const banner = document.getElementById("inappBanner");
     const hint = document.getElementById("inappHint");
@@ -796,53 +812,53 @@
     const copyUrl = document.getElementById("copyUrl");
     const dismissBanner = document.getElementById("dismissBanner");
 
-    const isLineInApp = /line\\//i.test(navigator.userAgent);
-    const isHttp = location.protocol === "http:" || location.protocol === "https:";
+    if (banner && hint && openExternal && copyUrl && dismissBanner) {
+      const isLineInApp = /line\\//i.test(navigator.userAgent);
+      const isHttp = location.protocol === "http:" || location.protocol === "https:";
 
-    if (isLineInApp) {
-      banner.classList.add("is-visible");
-      if (!isHttp) {
-        hint.textContent = "このページはローカルファイルのため、外部ブラウザ起動ができません。Safari/Chromeで直接開いてください。";
-        openExternal.disabled = true;
-      }
-    }
-
-    openExternal.addEventListener("click", () => {
-      if (!isHttp) return;
-      const currentUrl = location.href;
-      if (/android/i.test(navigator.userAgent)) {
-        const urlNoProtocol = currentUrl.replace(/^https?:\\/\\//i, "");
-        const intentUrl = `intent://${urlNoProtocol}#Intent;scheme=https;package=com.android.chrome;end`;
-        location.href = intentUrl;
-        setTimeout(() => {
-          location.href = currentUrl;
-        }, 500);
-      } else {
-        window.open(currentUrl, "_blank", "noopener");
-      }
-    });
-
-    copyUrl.addEventListener("click", async () => {
-      try {
+      if (isLineInApp) {
+        banner.classList.add("is-visible");
         if (!isHttp) {
-          alert("ローカルファイルのためURLコピーができません。");
-          return;
+          hint.textContent = "このページはローカルファイルのため、外部ブラウザ起動ができません。Safari/Chromeで直接開いてください。";
+          openExternal.disabled = true;
         }
-        await navigator.clipboard.writeText(location.href);
-        copyUrl.textContent = "コピーしました";
-        setTimeout(() => {
-          copyUrl.textContent = "URLをコピー";
-        }, 1500);
-      } catch (error) {
-        alert("URLのコピーに失敗しました。");
       }
-    });
 
-    dismissBanner.addEventListener("click", () => {
-      banner.classList.remove("is-visible");
-    });
+      openExternal.addEventListener("click", () => {
+        if (!isHttp) return;
+        const currentUrl = location.href;
+        if (/android/i.test(navigator.userAgent)) {
+          const urlNoProtocol = currentUrl.replace(/^https?:\\/\\//i, "");
+          const intentUrl = `intent://${urlNoProtocol}#Intent;scheme=https;package=com.android.chrome;end`;
+          location.href = intentUrl;
+          setTimeout(() => {
+            location.href = currentUrl;
+          }, 500);
+        } else {
+          window.open(currentUrl, "_blank", "noopener");
+        }
+      });
 
-    seedPlayers(initialPlayers);
+      copyUrl.addEventListener("click", async () => {
+        try {
+          if (!isHttp) {
+            alert("ローカルファイルのためURLコピーができません。");
+            return;
+          }
+          await navigator.clipboard.writeText(location.href);
+          copyUrl.textContent = "コピーしました";
+          setTimeout(() => {
+            copyUrl.textContent = "URLをコピー";
+          }, 1500);
+        } catch (error) {
+          alert("URLのコピーに失敗しました。");
+        }
+      });
+
+      dismissBanner.addEventListener("click", () => {
+        banner.classList.remove("is-visible");
+      });
+    }
 
     const downloadCanvas = (canvas) => {
       const link = document.createElement("a");
