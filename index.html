@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ゴルフ組み分けアプリ</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f5f9;
+      --grid-line: rgba(0, 0, 0, 0.06);
+      --ink: #1d1f2a;
+      --muted: #5f6376;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-border: rgba(0, 0, 0, 0.08);
+      --shadow: 0 20px 40px rgba(21, 24, 43, 0.12);
+      --accent-a: #ff5c8a;
+      --accent-b: #00c2a8;
+      --accent-c: #5bc0ff;
+      --accent-d: #ffe66d;
+      --accent-neutral: #78809a;
+      --accent-a-glow: rgba(255, 92, 138, 0.3);
+      --accent-b-glow: rgba(0, 194, 168, 0.3);
+      --accent-c-glow: rgba(91, 192, 255, 0.3);
+      --accent-d-glow: rgba(255, 230, 109, 0.35);
+      --accent-neutral-glow: rgba(120, 128, 154, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      color: var(--ink);
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px),
+        radial-gradient(circle at 12% 18%, rgba(255, 92, 138, 0.18), transparent 45%),
+        radial-gradient(circle at 88% 12%, rgba(0, 194, 168, 0.16), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(91, 192, 255, 0.18), transparent 45%);
+      background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%, 100% 100%;
+      background-attachment: fixed;
+    }
+
+    body.is-dragging {
+      cursor: grabbing;
+      user-select: none;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 32px;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-c));
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 40px);
+      margin: 8px 0 8px;
+    }
+
+    .lead {
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .controls {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      color: #fff;
+      background: #202235;
+      box-shadow: 0 10px 18px rgba(20, 22, 40, 0.2);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 22px rgba(20, 22, 40, 0.24);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.accent {
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-c));
+    }
+
+    .btn.ghost {
+      background: #fff;
+      color: var(--ink);
+      border: 2px solid rgba(0, 0, 0, 0.12);
+      box-shadow: none;
+    }
+
+    .btn.mini {
+      padding: 10px 16px;
+      font-size: 14px;
+      background: linear-gradient(135deg, var(--accent-b), var(--accent-d));
+      color: #1b1b1b;
+    }
+
+    .btn.export {
+      background: linear-gradient(135deg, var(--accent-b), var(--accent-d));
+      color: #1b1b1b;
+    }
+
+    .add {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .add input {
+      border: 2px solid rgba(0, 0, 0, 0.12);
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+      background: #fff;
+    }
+
+    .add input:focus {
+      border-color: var(--accent-c);
+      box-shadow: 0 0 0 3px rgba(91, 192, 255, 0.2);
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+      animation: floatIn 0.6s ease both;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: var(--accent-neutral);
+    }
+
+    .count {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.05);
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    .dropzone {
+      min-height: 140px;
+      border-radius: 20px;
+      border: 2px dashed rgba(0, 0, 0, 0.12);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      align-content: start;
+      background: rgba(255, 255, 255, 0.7);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .dropzone.is-target {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .group-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .group {
+      --accent: var(--accent-a);
+    }
+
+    .group[data-group="A"] { --accent: var(--accent-a); --accent-glow: var(--accent-a-glow); }
+    .group[data-group="B"] { --accent: var(--accent-b); --accent-glow: var(--accent-b-glow); }
+    .group[data-group="C"] { --accent: var(--accent-c); --accent-glow: var(--accent-c-glow); }
+    .group[data-group="D"] { --accent: var(--accent-d); --accent-glow: var(--accent-d-glow); }
+
+    .group .badge {
+      background: var(--accent);
+      color: #1b1b1b;
+    }
+
+    .group .dropzone.is-target {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .pool {
+      --accent: var(--accent-neutral);
+      --accent-glow: var(--accent-neutral-glow);
+    }
+
+    .pool .dropzone.is-target {
+      border-color: var(--accent-neutral);
+      box-shadow: 0 0 0 4px var(--accent-neutral-glow);
+    }
+
+    .player {
+      border: 2px solid rgba(0, 0, 0, 0.08);
+      background: #fff;
+      border-radius: 18px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: grab;
+      box-shadow: 0 10px 16px rgba(21, 24, 43, 0.12);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      animation: popIn 0.35s ease both;
+      animation-delay: calc(var(--i, 0) * 0.05s);
+      touch-action: none;
+    }
+
+    .player:hover {
+      transform: translateY(-2px) rotate(-0.5deg);
+      box-shadow: 0 14px 20px rgba(21, 24, 43, 0.16);
+    }
+
+    .player:active {
+      cursor: grabbing;
+      transform: scale(0.98);
+    }
+
+    .player .handle {
+      width: 18px;
+      height: 18px;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle, rgba(0, 0, 0, 0.35) 20%, transparent 21%) 0 0 / 6px 6px;
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .player.dragging {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      cursor: grabbing;
+      transform: scale(1.05) rotate(-1deg);
+      box-shadow: 0 18px 30px rgba(21, 24, 43, 0.2);
+    }
+
+    .placeholder {
+      border: 2px dashed rgba(0, 0, 0, 0.2);
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @keyframes floatIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .board {
+        grid-template-columns: 1fr;
+      }
+
+      .group-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <span class="eyebrow">KIRAMU CUP2026</span>
+        <h1>希楽夢杯 組み分け</h1>
+        <p class="lead">
+          ドラッグ&ドロップで直感操作。やり直しはプールへ。
+        </p>
+      </div>
+      <div class="controls">
+        <div class="button-row">
+          <button class="btn accent" id="shuffle" type="button">均等シャッフル</button>
+          <button class="btn ghost" id="reset" type="button">全員プールへ</button>
+          <button class="btn export" id="export" type="button">PNG出力</button>
+        </div>
+        <div class="add">
+          <input id="newName" type="text" placeholder="名前を追加" aria-label="名前を追加" />
+          <button class="btn mini" id="add" type="button">追加</button>
+        </div>
+        <div class="note">カードをつまんで移動できます。タップでもOK。PNG出力は今の配置を保存します。</div>
+      </div>
+    </header>
+
+    <section class="board">
+      <section class="panel pool">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="badge">Pool</span>
+            <h2>待機</h2>
+          </div>
+          <span class="count" data-count="pool">0人</span>
+        </div>
+        <div class="dropzone" data-zone="pool" aria-label="待機エリア"></div>
+      </section>
+
+      <section class="panel groups">
+        <div class="group-grid">
+          <div class="group" data-group="A">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="badge">A</span>
+                <h2>第1組</h2>
+              </div>
+              <span class="count" data-count="A">0人</span>
+            </div>
+            <div class="dropzone" data-zone="A" aria-label="第1組"></div>
+          </div>
+
+          <div class="group" data-group="B">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="badge">B</span>
+                <h2>第2組</h2>
+              </div>
+              <span class="count" data-count="B">0人</span>
+            </div>
+            <div class="dropzone" data-zone="B" aria-label="第2組"></div>
+          </div>
+
+          <div class="group" data-group="C">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="badge">C</span>
+                <h2>第3組</h2>
+              </div>
+              <span class="count" data-count="C">0人</span>
+            </div>
+            <div class="dropzone" data-zone="C" aria-label="第3組"></div>
+          </div>
+
+          <div class="group" data-group="D">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="badge">D</span>
+                <h2>第4組</h2>
+              </div>
+              <span class="count" data-count="D">0人</span>
+            </div>
+            <div class="dropzone" data-zone="D" aria-label="第4組"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">全体の人数を自由に増やしても動きます。</footer>
+  </main>
+
+  <script>
+    const initialPlayers = [
+      "岡田真明",
+      "片山祐介",
+      "佐々木杏太",
+      "奥村ひとみ",
+      "中尾匠",
+      "比嘉唯介",
+      "木田仁也",
+      "草野耕平",
+      "那須せいか",
+      "西川和友",
+      "岩本太志",
+      "北川彩佳",
+      "小嶋良彦",
+      "秋田佳英"
+    ];
+
+    const dropzones = Array.from(document.querySelectorAll(".dropzone"));
+    const poolZone = document.querySelector('.dropzone[data-zone="pool"]');
+    const groupZones = ["A", "B", "C", "D"].map((key) =>
+      document.querySelector(`.dropzone[data-zone="${key}"]`)
+    );
+
+    let dragState = null;
+    let rafId = null;
+
+    const createPlayer = (name, index) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "player";
+      card.style.setProperty("--i", index);
+      card.innerHTML = `
+        <span class="handle" aria-hidden="true"></span>
+        <span class="name">${name}</span>
+      `;
+      card.addEventListener("pointerdown", onPointerDown);
+      return card;
+    };
+
+    const seedPlayers = (names) => {
+      poolZone.innerHTML = "";
+      names.forEach((name, index) => {
+        poolZone.appendChild(createPlayer(name, index));
+      });
+      updateCounts();
+    };
+
+    const updateCounts = () => {
+      document.querySelectorAll("[data-count]").forEach((el) => {
+        const zone = el.dataset.count;
+        const zoneEl = document.querySelector(`.dropzone[data-zone="${zone}"]`);
+        const count = zoneEl ? zoneEl.querySelectorAll(".player").length : 0;
+        el.textContent = `${count}人`;
+      });
+    };
+
+    const shuffleArray = (array) => {
+      for (let i = array.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
+    const shufflePlayers = () => {
+      const allPlayers = Array.from(document.querySelectorAll(".player"));
+      const shuffled = shuffleArray(allPlayers.slice());
+      groupZones.forEach((zone) => (zone.innerHTML = ""));
+      shuffled.forEach((player, index) => {
+        const targetZone = groupZones[index % groupZones.length];
+        targetZone.appendChild(player);
+      });
+      updateCounts();
+    };
+
+    const resetPlayers = () => {
+      const allPlayers = Array.from(document.querySelectorAll(".player"));
+      allPlayers.forEach((player) => poolZone.appendChild(player));
+      updateCounts();
+    };
+
+    const highlightZone = (zone) => {
+      dropzones.forEach((z) => z.classList.remove("is-target"));
+      if (zone) {
+        zone.classList.add("is-target");
+      }
+    };
+
+    const moveCard = (x, y) => {
+      if (!dragState) return;
+      const { card, offsetX, offsetY } = dragState;
+      card.style.left = `${x - offsetX}px`;
+      card.style.top = `${y - offsetY}px`;
+    };
+
+    const onPointerMove = (event) => {
+      if (!dragState) return;
+      dragState.lastX = event.clientX;
+      dragState.lastY = event.clientY;
+
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          moveCard(dragState.lastX, dragState.lastY);
+          const target = document.elementFromPoint(dragState.lastX, dragState.lastY);
+          const zone = target ? target.closest(".dropzone") : null;
+          if (zone !== dragState.targetZone) {
+            dragState.targetZone = zone;
+            highlightZone(zone);
+          }
+        });
+      }
+    };
+
+    const clearDrag = () => {
+      if (!dragState) return;
+      try {
+        dragState.card.releasePointerCapture(dragState.pointerId);
+      } catch (error) {
+        // Pointer capture may already be released in some browsers.
+      }
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
+      highlightZone(null);
+      document.body.classList.remove("is-dragging");
+    };
+
+    const onPointerUp = () => {
+      if (!dragState) return;
+      const { card, placeholder, targetZone, originZone } = dragState;
+      clearDrag();
+
+      card.classList.remove("dragging");
+      card.style.position = "";
+      card.style.left = "";
+      card.style.top = "";
+      card.style.width = "";
+      card.style.height = "";
+
+      if (!targetZone || targetZone === originZone) {
+        if (placeholder && placeholder.parentElement) {
+          placeholder.replaceWith(card);
+        } else if (targetZone) {
+          targetZone.appendChild(card);
+        }
+      } else {
+        targetZone.appendChild(card);
+        if (placeholder && placeholder.parentElement) {
+          placeholder.remove();
+        }
+      }
+
+      dragState = null;
+      updateCounts();
+    };
+
+    const onPointerDown = (event) => {
+      const card = event.currentTarget;
+      if (!card || dragState) return;
+      if (event.button && event.button !== 0) return;
+
+      event.preventDefault();
+
+      const rect = card.getBoundingClientRect();
+      const placeholder = document.createElement("div");
+      placeholder.className = "placeholder";
+      placeholder.style.width = `${rect.width}px`;
+      placeholder.style.height = `${rect.height}px`;
+
+      card.parentElement.insertBefore(placeholder, card);
+
+      dragState = {
+        card,
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+        placeholder,
+        targetZone: card.parentElement,
+        originZone: card.parentElement,
+        lastX: event.clientX,
+        lastY: event.clientY,
+      };
+
+      card.setPointerCapture(event.pointerId);
+      card.classList.add("dragging");
+      card.style.width = `${rect.width}px`;
+      card.style.height = `${rect.height}px`;
+      card.style.left = `${rect.left}px`;
+      card.style.top = `${rect.top}px`;
+
+      document.body.appendChild(card);
+      document.body.classList.add("is-dragging");
+      moveCard(event.clientX, event.clientY);
+
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
+      document.addEventListener("pointercancel", onPointerUp);
+    };
+
+    document.getElementById("shuffle").addEventListener("click", shufflePlayers);
+    document.getElementById("reset").addEventListener("click", resetPlayers);
+    const exportButton = document.getElementById("export");
+    exportButton.addEventListener("click", () => {
+      exportBoardAsPng();
+    });
+
+    const nameInput = document.getElementById("newName");
+    document.getElementById("add").addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        nameInput.focus();
+        return;
+      }
+      const player = createPlayer(name, poolZone.children.length);
+      poolZone.appendChild(player);
+      nameInput.value = "";
+      updateCounts();
+    });
+
+    nameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        document.getElementById("add").click();
+      }
+    });
+
+    seedPlayers(initialPlayers);
+
+    const exportBoardAsPng = async () => {
+      if (exportButton.disabled) return;
+      exportButton.disabled = true;
+      const originalLabel = exportButton.textContent;
+      exportButton.textContent = "PNG作成中...";
+
+      try {
+        const app = document.querySelector(".app");
+        const rect = app.getBoundingClientRect();
+        const bodyStyle = getComputedStyle(document.body);
+        const wrapper = document.createElement("div");
+        wrapper.style.width = `${rect.width}px`;
+        wrapper.style.height = `${rect.height}px`;
+        wrapper.style.margin = "0";
+        wrapper.style.padding = "0";
+        wrapper.style.boxSizing = "border-box";
+        wrapper.style.backgroundColor = bodyStyle.backgroundColor;
+        wrapper.style.backgroundImage = bodyStyle.backgroundImage;
+        wrapper.style.backgroundSize = bodyStyle.backgroundSize;
+        wrapper.style.backgroundPosition = bodyStyle.backgroundPosition;
+        wrapper.style.backgroundRepeat = bodyStyle.backgroundRepeat;
+        wrapper.style.backgroundAttachment = "scroll";
+
+        const styleTag = document.createElement("style");
+        const baseStyles = document.querySelector("style");
+        styleTag.textContent = baseStyles ? baseStyles.textContent : "";
+        wrapper.appendChild(styleTag);
+
+        const clone = app.cloneNode(true);
+        clone.style.margin = "0";
+        clone.style.maxWidth = "none";
+        clone.style.width = "100%";
+        wrapper.appendChild(clone);
+
+        const serializer = new XMLSerializer();
+        const serialized = serializer.serializeToString(wrapper);
+        const width = Math.ceil(rect.width);
+        const height = Math.ceil(rect.height);
+        const svg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+            <foreignObject width="100%" height="100%">${serialized}</foreignObject>
+          </svg>
+        `;
+
+        const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+
+        const image = new Image();
+        const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+        await new Promise((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = (error) => reject(error);
+          image.src = url;
+        });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(width * pixelRatio);
+        canvas.height = Math.ceil(height * pixelRatio);
+        const ctx = canvas.getContext("2d");
+        ctx.scale(pixelRatio, pixelRatio);
+        ctx.drawImage(image, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+
+        const link = document.createElement("a");
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        link.download = `golf-groups-${dateStamp}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } catch (error) {
+        alert("PNG出力に失敗しました。別のブラウザでお試しください。");
+      } finally {
+        exportButton.disabled = false;
+        exportButton.textContent = originalLabel;
+      }
+    };
+  </script>
+</body>
+</html>
