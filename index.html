@@ -50,6 +50,7 @@
     body.is-dragging {
       cursor: grabbing;
       user-select: none;
+      touch-action: none;
     }
 
     .inapp-banner {
@@ -297,6 +298,7 @@
       align-content: start;
       background: rgba(255, 255, 255, 0.7);
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      touch-action: none;
     }
 
     .dropzone.is-target {
@@ -500,9 +502,66 @@
             <span class="badge">Pool</span>
             <h2>待機</h2>
           </div>
-          <span class="count" data-count="pool">0人</span>
+          <span class="count" data-count="pool">14人</span>
         </div>
-        <div class="dropzone" data-zone="pool" aria-label="待機エリア"></div>
+        <div class="dropzone" data-zone="pool" aria-label="待機エリア">
+          <button class="player" type="button" style="--i: 0">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">岡田真明</span>
+          </button>
+          <button class="player" type="button" style="--i: 1">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">片山祐介</span>
+          </button>
+          <button class="player" type="button" style="--i: 2">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">佐々木杏太</span>
+          </button>
+          <button class="player is-pink" type="button" style="--i: 3">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">奥村ひとみ</span>
+          </button>
+          <button class="player" type="button" style="--i: 4">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">中尾匠</span>
+          </button>
+          <button class="player" type="button" style="--i: 5">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">比嘉唯介</span>
+          </button>
+          <button class="player" type="button" style="--i: 6">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">木田仁也</span>
+          </button>
+          <button class="player" type="button" style="--i: 7">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">草野耕平</span>
+          </button>
+          <button class="player is-pink" type="button" style="--i: 8">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">那須せいか</span>
+          </button>
+          <button class="player" type="button" style="--i: 9">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">西川和友</span>
+          </button>
+          <button class="player" type="button" style="--i: 10">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">岩本太志</span>
+          </button>
+          <button class="player is-pink" type="button" style="--i: 11">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">北川彩佳</span>
+          </button>
+          <button class="player" type="button" style="--i: 12">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">小嶋良彦</span>
+          </button>
+          <button class="player" type="button" style="--i: 13">
+            <span class="handle" aria-hidden="true"></span>
+            <span class="name">秋田佳英</span>
+          </button>
+        </div>
       </section>
 
       <section class="panel groups">
@@ -586,19 +645,28 @@
     let dragState = null;
     let rafId = null;
 
-    const createPlayer = (name, index) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "player";
+    const attachPlayerBehavior = (card, index) => {
+      const nameEl = card.querySelector(".name");
+      const name = nameEl ? nameEl.textContent.trim() : "";
       if (pinkNames.has(name)) {
         card.classList.add("is-pink");
       }
       card.style.setProperty("--i", index);
+      if (!card.dataset.bound) {
+        card.addEventListener("pointerdown", onPointerDown);
+        card.dataset.bound = "true";
+      }
+    };
+
+    const createPlayer = (name, index) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "player";
       card.innerHTML = `
         <span class="handle" aria-hidden="true"></span>
         <span class="name">${name}</span>
       `;
-      card.addEventListener("pointerdown", onPointerDown);
+      attachPlayerBehavior(card, index);
       return card;
     };
 
@@ -763,7 +831,15 @@
       document.addEventListener("pointercancel", onPointerUp);
     };
 
-    seedPlayers(initialPlayers);
+    const existingPlayers = Array.from(document.querySelectorAll(".player"));
+    if (existingPlayers.length === 0) {
+      seedPlayers(initialPlayers);
+    } else {
+      existingPlayers.forEach((card, index) => {
+        attachPlayerBehavior(card, index);
+      });
+      updateCounts();
+    }
 
     const shuffleButton = document.getElementById("shuffle");
     const resetButton = document.getElementById("reset");
