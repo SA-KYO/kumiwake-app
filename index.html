@@ -347,12 +347,13 @@
       border: 2px solid rgba(0, 0, 0, 0.08);
       background: #fff;
       border-radius: 18px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       display: flex;
       align-items: center;
       gap: 8px;
       font-weight: 800;
-      font-size: 16px;
+      font-size: 15px;
+      line-height: 1.2;
       color: var(--ink);
       cursor: grab;
       user-select: none;
@@ -377,8 +378,8 @@
     }
 
     .player .handle {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border-radius: 8px;
       background:
         radial-gradient(circle, rgba(0, 0, 0, 0.35) 20%, transparent 21%) 0 0 / 6px 6px;
@@ -644,6 +645,7 @@
 
     let dragState = null;
     let rafId = null;
+    let autoScrollId = null;
 
     const attachPlayerBehavior = (card, index) => {
       const nameEl = card.querySelector(".name");
@@ -741,8 +743,37 @@
             dragState.targetZone = zone;
             highlightZone(zone);
           }
+          updateAutoScroll();
         });
       }
+    };
+
+    const updateAutoScroll = () => {
+      if (!dragState) return;
+      const edge = 90;
+      const maxSpeed = 18;
+      const viewportHeight = window.innerHeight;
+      let speed = 0;
+
+      if (dragState.lastY < edge) {
+        speed = -maxSpeed * (1 - dragState.lastY / edge);
+      } else if (dragState.lastY > viewportHeight - edge) {
+        speed = maxSpeed * (1 - (viewportHeight - dragState.lastY) / edge);
+      }
+
+      dragState.autoScrollSpeed = speed;
+      if (!autoScrollId && speed !== 0) {
+        autoScrollId = requestAnimationFrame(runAutoScroll);
+      }
+    };
+
+    const runAutoScroll = () => {
+      if (!dragState || !dragState.autoScrollSpeed) {
+        autoScrollId = null;
+        return;
+      }
+      window.scrollBy(0, dragState.autoScrollSpeed);
+      autoScrollId = requestAnimationFrame(runAutoScroll);
     };
 
     const clearDrag = () => {
@@ -751,6 +782,11 @@
         dragState.card.releasePointerCapture(dragState.pointerId);
       } catch (error) {
         // Pointer capture may already be released in some browsers.
+      }
+      dragState.autoScrollSpeed = 0;
+      if (autoScrollId) {
+        cancelAnimationFrame(autoScrollId);
+        autoScrollId = null;
       }
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
