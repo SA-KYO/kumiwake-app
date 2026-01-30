@@ -813,7 +813,7 @@
     const dismissBanner = document.getElementById("dismissBanner");
 
     if (banner && hint && openExternal && copyUrl && dismissBanner) {
-      const isLineInApp = /line\\//i.test(navigator.userAgent);
+    const isLineInApp = /line\//i.test(navigator.userAgent);
       const isHttp = location.protocol === "http:" || location.protocol === "https:";
 
       if (isLineInApp) {
@@ -828,7 +828,7 @@
         if (!isHttp) return;
         const currentUrl = location.href;
         if (/android/i.test(navigator.userAgent)) {
-          const urlNoProtocol = currentUrl.replace(/^https?:\\/\\//i, "");
+          const urlNoProtocol = currentUrl.replace(/^https?:\/\//i, "");
           const intentUrl = `intent://${urlNoProtocol}#Intent;scheme=https;package=com.android.chrome;end`;
           location.href = intentUrl;
           setTimeout(() => {
