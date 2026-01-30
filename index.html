@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ゴルフ組み分けアプリ</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
   <style>
     :root {
       color-scheme: light;
@@ -305,7 +306,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-weight: 700;
+      font-weight: 800;
+      font-size: 16px;
       color: var(--ink);
       cursor: grab;
       box-shadow: 0 10px 16px rgba(21, 24, 43, 0.12);
@@ -332,6 +334,14 @@
       background:
         radial-gradient(circle, rgba(0, 0, 0, 0.35) 20%, transparent 21%) 0 0 / 6px 6px;
       background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .player .name {
+      font-weight: 800;
+    }
+
+    .player.is-pink .name {
+      color: var(--accent-a);
     }
 
     .player.dragging {
@@ -511,6 +521,8 @@
       document.querySelector(`.dropzone[data-zone="${key}"]`)
     );
 
+    const pinkNames = new Set(["那須せいか", "北川彩佳", "奥村ひとみ"]);
+
     let dragState = null;
     let rafId = null;
 
@@ -518,6 +530,9 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "player";
+      if (pinkNames.has(name)) {
+        card.classList.add("is-pink");
+      }
       card.style.setProperty("--i", index);
       card.innerHTML = `
         <span class="handle" aria-hidden="true"></span>
@@ -717,6 +732,14 @@
 
     seedPlayers(initialPlayers);
 
+    const downloadCanvas = (canvas) => {
+      const link = document.createElement("a");
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      link.download = `golf-groups-${dateStamp}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    };
+
     const exportBoardAsPng = async () => {
       if (exportButton.disabled) return;
       exportButton.disabled = true;
@@ -727,7 +750,46 @@
         const app = document.querySelector(".app");
         const rect = app.getBoundingClientRect();
         const bodyStyle = getComputedStyle(document.body);
+        const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+
+        if (typeof window.html2canvas === "function") {
+          const previous = {
+            backgroundColor: app.style.backgroundColor,
+            backgroundImage: app.style.backgroundImage,
+            backgroundSize: app.style.backgroundSize,
+            backgroundPosition: app.style.backgroundPosition,
+            backgroundRepeat: app.style.backgroundRepeat,
+            backgroundAttachment: app.style.backgroundAttachment,
+          };
+          app.style.backgroundColor = bodyStyle.backgroundColor;
+          app.style.backgroundImage = bodyStyle.backgroundImage;
+          app.style.backgroundSize = bodyStyle.backgroundSize;
+          app.style.backgroundPosition = bodyStyle.backgroundPosition;
+          app.style.backgroundRepeat = bodyStyle.backgroundRepeat;
+          app.style.backgroundAttachment = "scroll";
+
+          try {
+            const canvas = await window.html2canvas(app, {
+              scale: pixelRatio,
+              backgroundColor: null,
+              useCORS: true,
+              width: Math.ceil(rect.width),
+              height: Math.ceil(rect.height),
+            });
+            downloadCanvas(canvas);
+            return;
+          } finally {
+            app.style.backgroundColor = previous.backgroundColor;
+            app.style.backgroundImage = previous.backgroundImage;
+            app.style.backgroundSize = previous.backgroundSize;
+            app.style.backgroundPosition = previous.backgroundPosition;
+            app.style.backgroundRepeat = previous.backgroundRepeat;
+            app.style.backgroundAttachment = previous.backgroundAttachment;
+          }
+        }
+
         const wrapper = document.createElement("div");
+        wrapper.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
         wrapper.style.width = `${rect.width}px`;
         wrapper.style.height = `${rect.height}px`;
         wrapper.style.margin = "0";
@@ -761,11 +823,12 @@
           </svg>
         `;
 
-        const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(svgBlob);
+        const encodedSvg = encodeURIComponent(svg)
+          .replace(/%0A/g, "")
+          .replace(/%20/g, " ");
+        const url = `data:image/svg+xml;charset=utf-8,${encodedSvg}`;
 
         const image = new Image();
-        const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
         await new Promise((resolve, reject) => {
           image.onload = () => resolve();
           image.onerror = (error) => reject(error);
@@ -776,15 +839,12 @@
         canvas.width = Math.ceil(width * pixelRatio);
         canvas.height = Math.ceil(height * pixelRatio);
         const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          throw new Error("Canvas is not supported.");
+        }
         ctx.scale(pixelRatio, pixelRatio);
         ctx.drawImage(image, 0, 0, width, height);
-        URL.revokeObjectURL(url);
-
-        const link = document.createElement("a");
-        const dateStamp = new Date().toISOString().slice(0, 10);
-        link.download = `golf-groups-${dateStamp}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+        downloadCanvas(canvas);
       } catch (error) {
         alert("PNG出力に失敗しました。別のブラウザでお試しください。");
       } finally {
